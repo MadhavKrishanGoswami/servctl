@@ -1,0 +1,48 @@
+# Full test container with simulated drives
+# Simulates Ubuntu 22.04 with multiple disk types
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install all dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    util-linux \
+    hdparm \
+    smartmontools \
+    cron \
+    ufw \
+    e2fsprogs \
+    xfsprogs \
+    btrfs-progs \
+    sudo \
+    iputils-ping \
+    dnsutils \
+    kmod \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI
+RUN curl -fsSL https://get.docker.com | sh || true
+
+# Create test user with sudo
+RUN useradd -m -s /bin/bash testuser && \
+    echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+WORKDIR /app
+
+# Copy the binary
+COPY bin/servctl /app/servctl
+RUN chmod +x /app/servctl
+
+# Copy the disk simulation script
+COPY scripts/simulate-disks.sh /app/simulate-disks.sh
+RUN chmod +x /app/simulate-disks.sh
+
+# Copy the full test script
+COPY scripts/full-test.sh /app/full-test.sh
+RUN chmod +x /app/full-test.sh
+
+# Default: run full test suite
+CMD ["/app/full-test.sh"]
