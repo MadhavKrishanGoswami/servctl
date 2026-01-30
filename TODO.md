@@ -234,87 +234,98 @@
 
 ---
 
-## 🐳 Phase 4: Module D - Service Composition
+## 🐳 Phase 4: Module D - Service Composition ✅
 
 ### 4.1 Input Wizard (Interactive TUI)
-- [ ] Create `InputWizard()` TUI component
-- [ ] Collect user inputs:
-  - [ ] `TZ` (Timezone) - Default: Auto-detect or "UTC"
-  - [ ] `PUID/PGID` - Default: Current user (1000/1000)
-  - [ ] `DB_PASSWORD` - Auto-generate strong alphanumeric if blank
-  - [ ] Discord/Telegram Webhook URLs (for notifications)
-  - [ ] Nextcloud Admin Username
-  - [ ] Nextcloud Admin Password
+- [x] Create `InputWizard()` TUI component
+- [x] Collect user inputs:
+  - [x] `TZ` (Timezone) - Default: Auto-detect or "UTC"
+  - [x] `PUID/PGID` - Default: Current user (1000/1000)
+  - [x] `DB_PASSWORD` - Auto-generate strong alphanumeric if blank
+  - [x] Discord/Telegram Webhook URLs (for notifications)
+  - [x] Nextcloud Admin Username
+  - [x] Nextcloud Admin Password
   
   > **Note:** `UPLOAD_LOCATION` and data paths are **NOT user-configurable**.  
   > They are auto-derived from Module B (disk selection) and hardcoded to `/mnt/data/`  
   > for consistency. This is intentional — servctl is an **opinionated** tool.
 
-- [ ] Input Validation:
-  - [ ] Ensure passwords are not empty
-  - [ ] Ensure paths exist or are creatable
-  - [ ] Validate webhook URL format
+- [x] Input Validation:
+  - [x] Ensure passwords are not empty
+  - [x] Ensure paths exist or are creatable
+  - [x] Validate webhook URL format
 
 ### 4.2 Network Configuration
-- [ ] Create `DetectHostIP()` function
-  - [ ] Auto-detect primary interface IP
-  - [ ] Prompt user to set **Static IP** (Critical from PRD)
-  - [ ] Validate IP format
-  - [ ] Validate IP range (192.168.x.x or 10.x.x.x)
-  - [ ] Validate IP is not already in use
-  - [ ] Warn about DHCP lockout risk for Nextcloud
+- [x] Create `DetectHostIP()` function
+  - [x] Auto-detect primary interface IP
+  - [x] Prompt user to set **Static IP** (Critical from PRD)
+  - [x] Validate IP format
+  - [x] Validate IP range (192.168.x.x or 10.x.x.x)
+  - [x] Validate IP is not already in use
+  - [x] Warn about DHCP lockout risk for Nextcloud
 
 ### 4.3 Docker Compose Generation
-- [ ] Create `docker-compose.yml.tmpl` template
-- [ ] Generate services:
-  - [ ] **Immich Server** (Port 2283)
-    - [ ] Volume mounts for uploads
-    - [ ] ENV file reference
-    - [ ] Depends on: redis, database
-  - [ ] **Immich Machine Learning**
-    - [ ] Model cache volume
-    - [ ] ENV file reference
-  - [ ] **Nextcloud** (Port 8080)
-    - [ ] Configure `OVERWRITEPROTOCOL`
-    - [ ] Configure `TRUSTED_DOMAINS` with static IP
-    - [ ] Configure `OVERWRITEHOST`
-    - [ ] Admin auto-setup via ENV
-  - [ ] **Redis/Valkey** (For Immich)
-  - [ ] **Glances** (Port 61208)
-    - [ ] Host mode networking
-    - [ ] SMART data reading capabilities
-    - [ ] `SYS_ADMIN` and `SYS_RAWIO` capabilities
-  - [ ] **Diun** (Update notifier)
-    - [ ] Discord/Telegram webhook integration
-    - [ ] Bi-monthly check schedule
+- [x] Create `docker-compose.yml.tmpl` template
+- [x] Generate services:
+  - [x] **Immich Server** (Port 2283)
+    - [x] Volume mounts for uploads
+    - [x] ENV file reference
+    - [x] Depends on: redis, database
+  - [x] **Immich Machine Learning**
+    - [x] Model cache volume
+    - [x] ENV file reference
+  - [x] **Nextcloud** (Port 8080)
+    - [x] Configure `OVERWRITEPROTOCOL`
+    - [x] Configure `TRUSTED_DOMAINS` with static IP
+    - [x] Configure `OVERWRITEHOST`
+    - [x] Admin auto-setup via ENV
+  - [x] **Redis/Valkey** (For Immich)
+  - [x] **Glances** (Port 61208)
+    - [x] Host mode networking
+    - [x] SMART data reading capabilities
+    - [x] `SYS_ADMIN` and `SYS_RAWIO` capabilities
+  - [x] **Diun** (Update notifier)
+    - [x] Discord/Telegram webhook integration
+    - [x] Bi-monthly check schedule
 
 ### 4.4 Database Architecture (Critical Fix from PRD)
-- [ ] Create **ISOLATED** database containers:
-  - [ ] **Immich DB:** Dedicated `postgres:14-vectorchord` container
-  - [ ] **Nextcloud DB:** Dedicated `mariadb` or `postgres` container
-  - [ ] Separate credentials for each database
-- [ ] **Rationale:** Prevent "Dependency Hell" during upgrades
+- [x] Create **ISOLATED** database containers:
+  - [x] **Immich DB:** Dedicated `postgres:14-vectorchord` container
+  - [x] **Nextcloud DB:** Dedicated `mariadb` container
+  - [x] Separate credentials for each database
+- [x] **Rationale:** Prevent "Dependency Hell" during upgrades
 
 ### 4.5 ENV File Generation
-- [ ] Create `.env.tmpl` template
-- [ ] Generate sections:
-  - [ ] Shared/Global settings (TZ, PUID, PGID)
-  - [ ] Immich DB credentials
-  - [ ] Nextcloud DB credentials
-  - [ ] Path configurations
-  - [ ] Webhook URLs
+- [x] Create `.env.tmpl` template (built into GenerateEnvFile)
+- [x] Generate sections:
+  - [x] Shared/Global settings (TZ, PUID, PGID)
+  - [x] Immich DB credentials
+  - [x] Nextcloud DB credentials
+  - [x] Path configurations
+  - [x] Webhook URLs
 
 ### 4.6 Firewall Configuration (UFW)
-- [ ] Create `ConfigureFirewall()` function
-- [ ] **CRITICAL: Lockout Prevention**
-  - [ ] Execute `ufw allow ssh` (Port 22) **FIRST**
-  - [ ] Verify SSH rule is active
-- [ ] Add service rules:
-  - [ ] `ufw allow 2283/tcp` (Immich)
-  - [ ] `ufw allow 8080/tcp` (Nextcloud)
-  - [ ] `ufw allow 61208/tcp` (Glances - Optional/Local only)
-- [ ] Execute `ufw enable` only after rule verification
-- [ ] Display firewall status to user
+- [x] Create `ConfigureFirewall()` function
+- [x] **CRITICAL: Lockout Prevention**
+  - [x] Execute `ufw allow ssh` (Port 22) **FIRST**
+  - [x] Verify SSH rule is active
+- [x] Add service rules:
+  - [x] `ufw allow 2283/tcp` (Immich)
+  - [x] `ufw allow 8080/tcp` (Nextcloud)
+  - [x] `ufw allow 61208/tcp` (Glances - Optional/Local only)
+- [x] Execute `ufw enable` only after rule verification
+- [x] Display firewall status to user
+
+### 4.7 TUI Components
+- [x] `RenderConfigWizardIntro()` - Configuration wizard intro
+- [x] `RenderInputPrompt()` - Input field rendering
+- [x] `RenderTimezoneSelection()` - Timezone picker
+- [x] `RenderNetworkConfig()` - Network configuration screen
+- [x] `RenderGeneratedCredentials()` - Credential display
+- [x] `RenderServiceSummary()` - Service overview
+- [x] `RenderFirewallConfig()` - Firewall rules display
+- [x] `RenderComposeGenerated()` - Compose file confirmation
+- [x] `RenderConfigSummary()` - Final configuration summary
 
 ---
 
