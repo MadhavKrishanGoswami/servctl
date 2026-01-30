@@ -190,30 +190,47 @@
 
 ---
 
-## 📁 Phase 3: Module C - Directory & Infrastructure Structure
+## 📁 Phase 3: Module C - Directory & Infrastructure Structure ✅
 
 ### 3.1 User Space Directory Creation
-- [ ] Create `~/infra/` (Root for configs)
-- [ ] Create `~/infra/scripts/` (Maintenance executables)
-- [ ] Create `~/infra/logs/` (Centralized logging)
+- [x] Create `~/infra/` (Root for configs)
+- [x] Create `~/infra/scripts/` (Maintenance executables)
+- [x] Create `~/infra/logs/` (Centralized logging)
+- [x] Create `~/infra/compose/` (Docker Compose files)
+- [x] Create `~/infra/config/` (Service configurations)
+- [x] Create `~/infra/backups/` (Backup staging area)
 
 ### 3.2 Data Space Directory Creation
-- [ ] Create `/mnt/data/` root
-- [ ] Create Immich directories:
-  - [ ] `/mnt/data/gallery/library`
-  - [ ] `/mnt/data/gallery/upload`
-  - [ ] `/mnt/data/gallery/profile`
-  - [ ] `/mnt/data/gallery/video`
-- [ ] Create Nextcloud directory:
-  - [ ] `/mnt/data/cloud/data`
+- [x] Create `/mnt/data/` root
+- [x] Create Immich directories:
+  - [x] `/mnt/data/gallery/library`
+  - [x] `/mnt/data/gallery/upload`
+  - [x] `/mnt/data/gallery/profile`
+  - [x] `/mnt/data/gallery/video`
+  - [x] `/mnt/data/gallery/thumbs`
+- [x] Create Nextcloud directories:
+  - [x] `/mnt/data/cloud/data`
+  - [x] `/mnt/data/cloud/config`
+- [x] Create Database directories (ISOLATED per service):
+  - [x] `/mnt/data/databases/immich-postgres`
+  - [x] `/mnt/data/databases/nextcloud-mariadb`
+- [x] Create Cache directory:
+  - [x] `/mnt/data/cache` (Redis/Valkey)
 
 ### 3.3 Permission Enforcement (Critical Fix from PRD)
-- [ ] Create `SetPermissions()` function
-  - [ ] Get current user PUID (typically 1000)
-  - [ ] Get current user PGID (typically 1000)
-  - [ ] Execute `chown -R ${PUID}:${PGID} /mnt/data`
-  - [ ] Set appropriate `chmod` (755 for dirs, 644 for files)
-  - [ ] Prevent "Permission Denied" boot loops
+- [x] Create `SetPermissions()` function
+  - [x] Get current user PUID (typically 1000)
+  - [x] Get current user PGID (typically 1000)
+  - [x] Execute `chown -R ${PUID}:${PGID} /mnt/data`
+  - [x] Set appropriate `chmod` (755 for dirs, 644 for files)
+  - [x] Prevent "Permission Denied" boot loops
+
+### 3.4 TUI Components
+- [x] Create `RenderDirectoryPlan()` - Shows planned directories
+- [x] Create `RenderDirectoryTree()` - Visual tree view
+- [x] Create `RenderDirectoryProgress()` - Creation progress
+- [x] Create `RenderDirectoryComplete()` - Summary with stats
+- [x] Create `RenderPermissionConfirmation()` - Permission info
 
 ---
 
