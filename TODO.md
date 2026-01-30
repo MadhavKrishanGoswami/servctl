@@ -10,8 +10,8 @@
 ## 🏗️ Phase 0: Project Setup & Foundation
 
 ### 0.1 Repository Setup
-- [ ] Initialize Go module: `go mod init github.com/madhav/servctl`
-- [ ] Create project directory structure:
+- [x] Initialize Go module: `go mod init github.com/madhav/servctl`
+- [x] Create project directory structure:
   ```
   servctl/
   ├── cmd/
@@ -31,15 +31,15 @@
   ```
 
 ### 0.2 Dependencies Installation
-- [ ] Add Bubble Tea: `go get github.com/charmbracelet/bubbletea`
-- [ ] Add Lip Gloss: `go get github.com/charmbracelet/lipgloss`
-- [ ] Add Bubbles components: `go get github.com/charmbracelet/bubbles`
-- [ ] Add YAML library: `go get gopkg.in/yaml.v3`
+- [x] Add Bubble Tea: `go get github.com/charmbracelet/bubbletea`
+- [x] Add Lip Gloss: `go get github.com/charmbracelet/lipgloss`
+- [x] Add Bubbles components: `go get github.com/charmbracelet/bubbles`
+- [x] Add YAML library: `go get gopkg.in/yaml.v3`
 
 ### 0.3 Build System
-- [ ] Create `Makefile` with build targets
-- [ ] Set up static binary build: `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`
-- [ ] Add version injection at build time
+- [x] Create `Makefile` with build targets
+- [x] Set up static binary build: `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`
+- [x] Add version injection at build time
 
 ---
 
@@ -529,7 +529,7 @@
 
 | Phase | Status | Progress |
 |-------|--------|----------|
-| Phase 0: Project Setup | ⬜ Not Started | 0% |
+| Phase 0: Project Setup | ✅ Complete | 100% |
 | Phase 1: Pre-flight | ⬜ Not Started | 0% |
 | Phase 2: Storage | ⬜ Not Started | 0% |
 | Phase 3: Directory Structure | ⬜ Not Started | 0% |

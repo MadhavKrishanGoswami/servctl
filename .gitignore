@@ -1,0 +1,21 @@
+# Binaries
+bin/
+servctl
+servctl-local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Go
+vendor/
+go.sum
+
+# Environment
+.env
+*.env
