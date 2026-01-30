@@ -329,69 +329,73 @@
 
 ---
 
-## 🔧 Phase 5: Module E - Maintenance & Reliability
+## 🔧 Phase 5: Module E - Maintenance & Reliability ✅
 
 ### 5.1 Script Generation
-- [ ] Create `disk_alert.sh` template
-  - [ ] Monitor disk usage threshold (e.g., 80%)
-  - [ ] Send notification if threshold exceeded
-  - [ ] Inject user's webhook URL
+- [x] Create `disk_alert.sh` template
+  - [x] Monitor disk usage threshold (default: 90%)
+  - [x] Send notification if threshold exceeded
+  - [x] Inject user's webhook URL
 
-- [ ] Create `smart_alert.sh` template
-  - [ ] Run `smartctl` health check on all drives
-  - [ ] Parse SMART attributes for warnings
-  - [ ] Send notification on failure indicators
+- [x] Create `smart_alert.sh` template
+  - [x] Run `smartctl` health check on all drives
+  - [x] Parse SMART attributes for warnings
+  - [x] Send notification on failure indicators
 
-- [ ] Create `daily_backup.sh` template
-  - [ ] Backup specific Docker volumes
-  - [ ] Create PostgreSQL/MariaDB dumps
-  - [ ] Compress backups with timestamp
-  - [ ] Rotate old backups (keep last N)
-  - [ ] Send success/failure notification with the % of storage occupied and amount of storage used in the notification
+- [x] Create `daily_backup.sh` template
+  - [x] Backup with rsync (--delete for sync)
+  - [x] Track before/after disk usage
+  - [x] Send success/failure notification with storage stats
+  - [x] Color-coded Discord embeds (green=success, red=fail)
 
-- [ ] Create `weekly_cleanup.sh` template
-  - [ ] Prune unused Docker images: `docker image prune -f`
-  - [ ] Prune Docker system: `docker system prune -f`
-  - [ ] Clean old log files
-  - [ ] Send completion notification with the % of storage occupied and amount of storage used in the notification
+- [x] Create `weekly_cleanup.sh` template
+  - [x] Prune unused Docker images: `docker image prune -f`
+  - [x] Clean apt cache: `apt-get clean && autoremove`
+  - [x] Truncate large log files (>50MB)
+  - [x] Clean old backups (configurable retention days)
+  - [x] Send completion notification with before/after usage
 
 ### 5.2 Cron Orchestration
-- [ ] Create `ConfigureCron()` function
-- [ ] Interactive scheduling with TUI:
-  - [ ] Daily backup time (Default: 4:00 AM)
-  - [ ] Weekly cleanup day (Default: Sunday)
-  - [ ] Disk alert frequency (Default: Every 6 hours)
-  - [ ] SMART check frequency (Default: Daily)
-- [ ] **⚠️ SUDO/ROOT REQUIRED:** All cron jobs run with elevated privileges
-  - [ ] Use `/etc/cron.d/servctl` (system cron, runs as root)
-  - [ ] **NOT** user crontab (`crontab -e`) — insufficient permissions
-  - [ ] Scripts require root for:
-    - [ ] `docker` commands (unless user is in docker group)
-    - [ ] `smartctl` (raw disk access)
-    - [ ] Reading `/mnt/data` stats
-    - [ ] Writing to system logs
-  - [ ] Set proper permissions: `chmod 644 /etc/cron.d/servctl`
-  - [ ] Cron file format: `SHELL=/bin/bash` + `PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin`
-- [ ] **Idempotency:** Check for existing entries before adding
+- [x] Create `GenerateCronFile()` function
+- [x] Default schedules:
+  - [x] Daily backup: 4:00 AM
+  - [x] Weekly cleanup: Sunday 3:00 AM
+  - [x] Disk alert: Every 6 hours
+  - [x] SMART check: Daily 5:00 AM
+- [x] **⚠️ SUDO/ROOT REQUIRED:** All cron jobs run with elevated privileges
+  - [x] Use `/etc/cron.d/servctl` (system cron, runs as root)
+  - [x] Proper SHELL and PATH settings
+  - [x] Set permissions: chmod 644
+- [x] `CronSchedule` struct with `String()` and `HumanReadable()` methods
 
 ### 5.3 Notification Integration
-- [ ] Create `TestWebhook()` function
-  - [ ] Send test notification to Discord/Telegram
-  - [ ] Verify webhook is working before finalizing
-- [ ] Inject webhook URLs into all maintenance scripts
+- [x] Create `TestWebhook()` function
+  - [x] Send test notification to Discord
+  - [x] Verify webhook is working before finalizing
+- [x] Webhook URLs templated into all scripts
 
-### 5.4 Log Rotation Configuration (From PRD Gap)
-- [ ] Create `/etc/logrotate.d/servctl` config
-- [ ] Configure rotation policy:
-  - [ ] Rotate weekly
-  - [ ] Keep 4 weeks of history
-  - [ ] Compress old logs (gzip)
-  - [ ] Target: `~/infra/logs/*.log`
-- tell them about these configrations
+### 5.4 Log Rotation Configuration
+- [x] Create `GenerateLogrotateConfig()` function
+- [x] Configure rotation policy:
+  - [x] Rotate weekly
+  - [x] Keep 4 weeks of history
+  - [x] Compress old logs (gzip)
+  - [x] Target: `~/infra/logs/*.log`
+- [x] Output file: `/etc/logrotate.d/servctl`
 
-<!-- Future Featurer  -->
+### 5.5 TUI Components
+- [x] `RenderMaintenanceIntro()` - Setup introduction
+- [x] `RenderScriptPreview()` - Script preview cards
+- [x] `RenderAllScripts()` - All scripts summary
+- [x] `RenderCronSchedule()` - Cron configuration display
+- [x] `RenderWebhookTest()` - Webhook test result
+- [x] `RenderLogrotateConfig()` - Logrotate info display
+- [x] `RenderMaintenanceComplete()` - Completion summary
+- [x] `RenderMaintenanceSummary()` - Full configuration summary
 
-<!-- ### 5.5 Offsite Backup (Optional - From PRD Feedback) 
+<!-- Future Feature  -->
+
+<!-- ### 5.6 Offsite Backup (Optional - From PRD Feedback) 
 - [ ] Create optional Rclone integration
   - [ ] Configure remote (Google Drive/S3/Backblaze)
   - [ ] Daily push of critical configs/DB dumps
