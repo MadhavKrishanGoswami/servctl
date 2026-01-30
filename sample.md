@@ -104,7 +104,7 @@ services:
       # Watch all containers by default? (True = Easy Mode)
       - "DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT=true"
       # Discord Webhook (PASTE YOUR URL HERE or in .env)
-      - "DIUN_NOTIF_DISCORD_WEBHOOKURL=https://discord.com/api/webhooks/1464614181431935311/kJh0A510vDNaTNMNmpydzKQ217gVnShzayCka6kPxLHOpsoEp9jnZHlZXiCkBHHn55ac"
+      - "DIUN_NOTIF_DISCORD_WEBHOOKURL=https://discord.com/api/webhooks/"
       # Render fancy cards
       - "DIUN_NOTIF_DISCORD_RENDERFIELDS=true"
     restart: always
