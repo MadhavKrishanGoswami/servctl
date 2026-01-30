@@ -1,0 +1,45 @@
+# Ubuntu 22.04 with Docker-in-Docker support
+# Can actually run docker-compose and deploy services
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    iptables \
+    util-linux \
+    hdparm \
+    smartmontools \
+    cron \
+    ufw \
+    e2fsprogs \
+    xfsprogs \
+    btrfs-progs \
+    sudo \
+    iputils-ping \
+    dnsutils \
+    kmod \
+    systemd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CE with daemon support
+RUN curl -fsSL https://get.docker.com | sh
+
+# Create test user with sudo
+RUN useradd -m -s /bin/bash testuser && \
+    echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    usermod -aG docker testuser
+
+WORKDIR /app
+
+# Copy binaries and scripts
+COPY bin/servctl /app/servctl
+COPY scripts/simulate-disks.sh /app/simulate-disks.sh
+COPY scripts/full-test.sh /app/full-test.sh
+COPY scripts/start-with-docker.sh /app/start-with-docker.sh
+RUN chmod +x /app/*
+
+ENTRYPOINT ["/app/start-with-docker.sh"]

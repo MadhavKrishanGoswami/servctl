@@ -82,6 +82,13 @@ docker-shell: docker-build
 docker-quick: build
 	docker run --rm -v $(PWD)/bin:/app ubuntu:22.04 /app/servctl -version
 
+# Full Docker-in-Docker test (can run docker-compose!)
+docker-full: build
+	docker build -f Dockerfile.dind -t servctl-dind .
+	@echo ""
+	@echo "Starting Docker-in-Docker container..."
+	docker run --rm --privileged -it servctl-dind
+
 help:
 	@echo "Usage:"
 	@echo ""
@@ -95,8 +102,9 @@ help:
 	@echo "    make test-coverage - Generate coverage report"
 	@echo ""
 	@echo "  Test (Docker):"
-	@echo "    make docker-test   - Run full test in Ubuntu container"
+	@echo "    make docker-test   - Run tests in Ubuntu container"
 	@echo "    make docker-shell  - Interactive Ubuntu shell"
+	@echo "    make docker-full   - Full test with Docker-in-Docker"
 	@echo ""
 	@echo "  Quick Start:"
 	@echo "    make test-short && make docker-test"

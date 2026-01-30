@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y \
     kmod \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker CLI
-RUN curl -fsSL https://get.docker.com | sh || true
+# Install Docker CLI + Compose
+RUN curl -fsSL https://get.docker.com | sh || true && \
+    apt-get update && apt-get install -y docker-compose-plugin || true
 
 # Create test user with sudo
 RUN useradd -m -s /bin/bash testuser && \
