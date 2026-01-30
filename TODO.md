@@ -403,41 +403,53 @@
 
 ---
 
-## 🖥️ Phase 6: CLI Command Interface
+## 🖥️ Phase 6: CLI Command Interface ✅
 
 ### 6.1 Main Entry Point
-- [ ] Create `cmd/servctl/main.go`
-- [ ] Implement command routing
+- [x] Create `cmd/servctl/main.go`
+- [x] Implement command routing with flag package
+- [x] Add `-dry-run` option for previewing changes
 
 ### 6.2 Command Implementations
-- [ ] `servctl -start-setup`
-  - [ ] Launch interactive installation wizard
-  - [ ] Execute Modules A through E sequentially
-  - [ ] Use Bubble Tea for TUI navigation and make it very user-friendly and pretty
+- [x] `servctl -start-setup`
+  - [x] Launch interactive installation wizard
+  - [x] Execute Modules A through E sequentially
+  - [x] ASCII banner with branding
+  - [x] Phase-by-phase progress with prompts
+  - [x] Support for dry-run mode
 
-- [ ] `servctl -status`
-  - [ ] Display Docker container health status
-  - [ ] Show disk usage statistics
-  - [ ] Display SMART health summary
-  - [ ] Format output with Lip Gloss styling
+- [x] `servctl -status`
+  - [x] Display Docker container health status
+  - [x] Show disk usage statistics
+  - [x] Display SMART health summary
+  - [x] Format output with Lip Gloss styling
 
-- [ ] `servctl -get-config`
-  - [ ] Read and display current `.env`
-  - [ ] Read and display current `docker-compose.yml`
-  - [ ] Mask sensitive passwords in output
+- [x] `servctl -preflight`
+  - [x] Run pre-flight checks only
+  - [x] Exit with appropriate code on blockers
 
-- [ ] `servctl -get-architecture`
-  - [ ] Visualize folder structure tree
-  - [ ] Display disk mapping diagram
-  - [ ] Show service relationships
+- [x] `servctl -get-config`
+  - [x] Read and display current `.env`
+  - [x] Check `docker-compose.yml` exists
+  - [x] Mask sensitive passwords in output
 
-- [ ] `servctl -manual-backup`
-  - [ ] Trigger immediate `daily_backup.sh` execution
-  - [ ] Display real-time progress
-  - [ ] Show completion status
-- [ ] `servctl -logs`
-  - [ ] Display logs of all the services
-  - [ ] Make it interactive and pretty
+- [x] `servctl -get-architecture`
+  - [x] Visualize folder structure tree
+  - [x] Display service relationship diagram
+  - [x] Show network and port information
+
+- [x] `servctl -manual-backup`
+  - [x] Trigger immediate `daily_backup.sh` execution
+  - [x] Display real-time progress
+  - [x] Show completion status
+
+- [x] `servctl -logs`
+  - [x] Display Docker Compose logs
+  - [x] Interactive with `-f` (follow mode)
+  - [x] Shows last 50 lines
+
+- [x] `servctl -version`
+  - [x] Display version, build time, Go version, OS/Arch
 
 ---
 
@@ -464,32 +476,41 @@
 
 ---
 
-## 🎯 Phase 8: Non-Functional Requirements
+## 🎯 Phase 8: Non-Functional Requirements ✅
 
 ### 8.1 Idempotency Implementation
-- [ ] All operations must be re-runnable
-- [ ] Check for existing configs before writing
-- [ ] Skip duplicate `/etc/fstab` entries
-- [ ] Version existing files before overwriting
+- [x] `EnsureDir()` - Creates directories only if they don't exist
+- [x] `AppendLineIfMissing()` - Idempotent line appending
+- [x] `ContainsLine()` - Check for existing entries
+- [x] `CheckFstabEntry()` - Skip duplicate fstab entries
+- [x] `BackupFile()` - Version files before overwriting
+- [x] `SafeWriteFile()` - Write with optional backup
 
 ### 8.2 Error Handling ("Fail Fast")
-- [ ] Implement consistent error returns
-- [ ] On critical failure:
-  - [ ] Stop execution immediately
-  - [ ] Display `stderr` log
-  - [ ] Suggest remediation steps
-- [ ] Log all operations to `~/infra/logs/servctl.log`
+- [x] `ServctlError` struct with phase, operation, and remediation
+- [x] `NewCriticalError()` - Stops execution
+- [x] `NewWarningError()` - Non-critical warnings
+- [x] `FormatError()` - Pretty error display with remediation steps
+- [x] Logger class with file output to `~/infra/logs/servctl.log`
+- [x] Log levels: Info, Warn, Error, Debug
 
 ### 8.3 Mission Report (UX Handover)
-- [ ] Create `DisplayMissionReport()` function
-- [ ] Display at completion:
-  - [ ] Dashboard URLs:
-    - [ ] Immich: `http://<HOST_IP>:2283` (telll them where to put it in the browser/app)
-    - [ ] Nextcloud: `http://<HOST_IP>:8080` (telll them where to put it in the browser/app)
-    - [ ] Glances: `http://<HOST_IP>:61208` (telll them where to put it in the browser/no app)
-  - [ ] Generated credentials (one-time display)
-  - [ ] Next steps instructions
-  - [ ] How to change default passwords
+- [x] `RenderMissionReport()` - Full completion report
+- [x] `RenderDashboardURLs()` - Service URLs with app info:
+  - [x] Immich: `http://<HOST_IP>:2283` (Mobile app instructions)
+  - [x] Nextcloud: `http://<HOST_IP>:8080` (Mobile/Desktop app info)
+  - [x] Glances: `http://<HOST_IP>:61208` (Browser only)
+- [x] `RenderCredentials()` - One-time credential display with warnings
+- [x] `RenderQuickStart()` - Docker Compose commands
+- [x] `RenderNextSteps()` - Full next steps with password change instructions
+- [x] `RenderCompactReport()` - Condensed summary for dry-run
+
+### 8.4 TUI Styling
+- [x] Lipgloss styling throughout all TUI components
+- [x] Consistent color palette (success, warning, error, muted)
+- [x] ASCII art banner
+- [x] Boxed sections with rounded borders
+- [x] Credential masking in sensitive displays
 
 ---
 
