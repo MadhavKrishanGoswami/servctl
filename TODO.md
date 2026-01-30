@@ -46,56 +46,56 @@
 ## 🚀 Phase 1: Module A - Pre-flight & Dependency Management
 
 ### 1.1 System Prerequisite Checks
-- [ ] Create `CheckOS()` function
-  - [ ] Verify Ubuntu 22.04 LTS or later
-  - [ ] Parse `/etc/os-release` for version info
-  - [ ] Abort with clear error if OS check fails
+- [x] Create `CheckOS()` function
+  - [x] Verify Ubuntu 22.04 LTS or later
+  - [x] Parse `/etc/os-release` for version info
+  - [x] Abort with clear error if OS check fails
 
-- [ ] Create `CheckPrivileges()` function
-  - [ ] Verify non-root user with sudo access
-  - [ ] Test sudo capability without password caching issues
-  - [ ] Display warning if running as root directly
+- [x] Create `CheckPrivileges()` function
+  - [x] Verify non-root user with sudo access
+  - [x] Test sudo capability without password caching issues
+  - [x] Display warning if running as root directly
 
-- [ ] Create `CheckHardware()` function
-  - [ ] Check VT-x/AMD-V via `lscpu` (virtualization)
-  - [ ] Warn if Secure Boot is enabled
-  - [ ] Warn if Serial Ports are enabled
+- [x] Create `CheckHardware()` function
+  - [x] Check VT-x/AMD-V via `lscpu` (virtualization)
+  - [x] Warn if Secure Boot is enabled
+  - [x] Warn if Serial Ports are enabled
 
-- [ ] Create `CheckConnectivity()` function
-  - [ ] Ping external endpoint (e.g., `8.8.8.8`)
-  - [ ] Verify DNS resolution
-  - [ ] Abort if no internet connection
+- [x] Create `CheckConnectivity()` function
+  - [x] Ping external endpoint (e.g., `8.8.8.8`)
+  - [x] Verify DNS resolution
+  - [x] Abort if no internet connection
 
 ### 1.2 System Update Module
-- [ ] Create `SystemUpdate()` function
-  - [ ] Execute `sudo apt update`
-  - [ ] Execute `sudo apt upgrade -y`
-  - [ ] Show TUI progress spinner during execution
-  - [ ] Parse and display packages updated
+- [x] Create `SystemUpdate()` function
+  - [x] Execute `sudo apt update`
+  - [x] Execute `sudo apt upgrade -y`
+  - [x] Show TUI progress spinner during execution
+  - [x] Parse and display packages updated
 
 ### 1.3 Dependency Audit & Installation
-- [ ] Create `DependencyAudit()` function
-  - [ ] Check for `curl` → Install if missing
-  - [ ] Check for `net-tools` → Install if missing
-  - [ ] Check for `docker` → Install via official script if missing
-  - [ ] Check for `docker-compose` → Install if missing
-  - [ ] Check for `hdparm` → Install if missing
-  - [ ] Check for `smartmontools` → Install if missing
-  - [ ] Check for `cron` → Install if missing
-  - [ ] Check for `ufw` → Install if missing
+- [x] Create `DependencyAudit()` function
+  - [x] Check for `curl` → Install if missing
+  - [x] Check for `net-tools` → Install if missing
+  - [x] Check for `docker` → Install via official script if missing
+  - [x] Check for `docker-compose` → Install if missing
+  - [x] Check for `hdparm` → Install if missing
+  - [x] Check for `smartmontools` → Install if missing
+  - [x] Check for `cron` → Install if missing
+  - [x] Check for `ufw` → Install if missing
 
-- [ ] Create `VerifyDockerRunning()` function
-  - [ ] Check `systemctl status docker`
-  - [ ] Start docker service if not running
-  - [ ] Add current user to docker group
+- [x] Create `VerifyDockerRunning()` function
+  - [x] Check `systemctl status docker`
+  - [x] Start docker service if not running
+  - [x] Add current user to docker group
 
 ### 1.4 Critical Blocker Checks (From TechStack.md)
-- [ ] Verify `docker` binary exists → **Blocker** (abort if missing)
-- [ ] Verify `lsblk` binary exists → **Blocker** (abort if missing)
-- [ ] Verify `mkfs.ext4` binary exists → **Blocker** (abort if missing)
-- [ ] Verify `hdparm` binary exists → **Recommended** (warn if missing)
-- [ ] Verify `smartctl` binary exists → **Recommended** (warn if missing)
-- [ ] Verify `ufw` binary exists → **High** (warn if missing)
+- [x] Verify `docker` binary exists → **Blocker** (abort if missing)
+- [x] Verify `lsblk` binary exists → **Blocker** (abort if missing)
+- [x] Verify `mkfs.ext4` binary exists → **Blocker** (abort if missing)
+- [x] Verify `hdparm` binary exists → **Recommended** (warn if missing)
+- [x] Verify `smartctl` binary exists → **Recommended** (warn if missing)
+- [x] Verify `ufw` binary exists → **High** (warn if missing)
 
 ---
 
@@ -530,7 +530,7 @@
 | Phase | Status | Progress |
 |-------|--------|----------|
 | Phase 0: Project Setup | ✅ Complete | 100% |
-| Phase 1: Pre-flight | ⬜ Not Started | 0% |
+| Phase 1: Pre-flight | ✅ Complete | 100% |
 | Phase 2: Storage | ⬜ Not Started | 0% |
 | Phase 3: Directory Structure | ⬜ Not Started | 0% |
 | Phase 4: Service Composition | ⬜ Not Started | 0% |
