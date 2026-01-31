@@ -95,18 +95,64 @@ type lsblkOutput struct {
 
 type lsblkDevice struct {
 	Name       string        `json:"name"`
-	Size       string        `json:"size"`
+	Size       interface{}   `json:"size"` // Can be string or int depending on lsblk version
 	Type       string        `json:"type"`
-	Model      string        `json:"model"`
-	Serial     string        `json:"serial"`
-	Rota       string        `json:"rota"`
-	RM         string        `json:"rm"`
-	Tran       string        `json:"tran"`
-	Mountpoint string        `json:"mountpoint"`
-	Fstype     string        `json:"fstype"`
-	Label      string        `json:"label"`
-	UUID       string        `json:"uuid"`
+	Model      interface{}   `json:"model"`  // Can be null
+	Serial     interface{}   `json:"serial"` // Can be null
+	Rota       interface{}   `json:"rota"`   // Can be bool or string
+	RM         interface{}   `json:"rm"`     // Can be bool or string
+	Tran       interface{}   `json:"tran"`   // Can be null
+	Mountpoint interface{}   `json:"mountpoint"`
+	Fstype     interface{}   `json:"fstype"`
+	Label      interface{}   `json:"label"`
+	UUID       interface{}   `json:"uuid"`
 	Children   []lsblkDevice `json:"children"`
+}
+
+// Helper functions to safely extract values
+func getStringValue(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case string:
+		return val
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+func getBoolValue(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	switch val := v.(type) {
+	case bool:
+		return val
+	case string:
+		return val == "1" || val == "true"
+	default:
+		return false
+	}
+}
+
+func getUint64Value(v interface{}) uint64 {
+	if v == nil {
+		return 0
+	}
+	switch val := v.(type) {
+	case float64:
+		return uint64(val)
+	case int:
+		return uint64(val)
+	case int64:
+		return uint64(val)
+	case string:
+		if n, err := strconv.ParseUint(val, 10, 64); err == nil {
+			return n
+		}
+	}
+	return 0
 }
 
 // DiscoverDisks discovers all block devices on the system
@@ -126,12 +172,28 @@ func DiscoverDisks() ([]Disk, error) {
 
 	var disks []Disk
 	for _, device := range lsblk.BlockDevices {
-		// Only process disk devices (not partitions, loops, etc.)
-		if device.Type != "disk" {
+		// Process disk devices and loop devices (for testing with virtual disks)
+		if device.Type != "disk" && device.Type != "loop" {
 			continue
 		}
 
+		// Skip small loop devices (less than 100MB) - likely system loops
+		if device.Type == "loop" {
+			size := getUint64Value(device.Size)
+			if size < 100*1024*1024 { // 100MB minimum
+				continue
+			}
+		}
+
 		disk := parseLsblkDevice(device)
+
+		// Mark loop devices appropriately
+		if device.Type == "loop" {
+			disk.Model = "Virtual Disk (loopback)"
+			disk.Transport = "loop"
+			disk.IsAvailable = true // Loop devices are always available for testing
+		}
+
 		disks = append(disks, disk)
 	}
 
@@ -143,23 +205,24 @@ func parseLsblkDevice(device lsblkDevice) Disk {
 	disk := Disk{
 		Name:      device.Name,
 		Path:      "/dev/" + device.Name,
-		Model:     strings.TrimSpace(device.Model),
-		Serial:    strings.TrimSpace(device.Serial),
-		Transport: device.Tran,
+		Model:     strings.TrimSpace(getStringValue(device.Model)),
+		Serial:    strings.TrimSpace(getStringValue(device.Serial)),
+		Transport: getStringValue(device.Tran),
 	}
 
 	// Parse size
-	if size, err := strconv.ParseUint(device.Size, 10, 64); err == nil {
+	size := getUint64Value(device.Size)
+	if size > 0 {
 		disk.Size = size
 		disk.SizeHuman = formatBytes(size)
 		disk.SizeCategory = categorizeDiskSize(size)
 	}
 
 	// Determine if rotational (HDD)
-	disk.Rotational = device.Rota == "1"
+	disk.Rotational = getBoolValue(device.Rota)
 
 	// Determine if removable
-	disk.Removable = device.RM == "1"
+	disk.Removable = getBoolValue(device.RM)
 
 	// Classify disk type
 	disk.Type = classifyDiskType(device, disk.Rotational, disk.Removable)
@@ -169,19 +232,20 @@ func parseLsblkDevice(device lsblkDevice) Disk {
 		if child.Type == "part" {
 			partition := Partition{
 				Name:       child.Name,
-				Filesystem: child.Fstype,
-				MountPoint: child.Mountpoint,
-				Label:      child.Label,
-				UUID:       child.UUID,
+				Filesystem: getStringValue(child.Fstype),
+				MountPoint: getStringValue(child.Mountpoint),
+				Label:      getStringValue(child.Label),
+				UUID:       getStringValue(child.UUID),
 			}
-			if size, err := strconv.ParseUint(child.Size, 10, 64); err == nil {
-				partition.Size = size
-				partition.SizeHuman = formatBytes(size)
+			childSize := getUint64Value(child.Size)
+			if childSize > 0 {
+				partition.Size = childSize
+				partition.SizeHuman = formatBytes(childSize)
 			}
 			disk.Partitions = append(disk.Partitions, partition)
 
 			// Check if this is the OS disk
-			if child.Mountpoint == "/" {
+			if getStringValue(child.Mountpoint) == "/" {
 				disk.IsOSDisk = true
 			}
 		}
@@ -195,13 +259,15 @@ func parseLsblkDevice(device lsblkDevice) Disk {
 
 // classifyDiskType determines the type of disk
 func classifyDiskType(device lsblkDevice, rotational, removable bool) DiskType {
+	tran := getStringValue(device.Tran)
+
 	// NVMe drives
-	if strings.HasPrefix(device.Name, "nvme") || device.Tran == "nvme" {
+	if strings.HasPrefix(device.Name, "nvme") || tran == "nvme" {
 		return DiskTypeNVMe
 	}
 
 	// USB drives
-	if device.Tran == "usb" || removable {
+	if tran == "usb" || removable {
 		return DiskTypeUSB
 	}
 

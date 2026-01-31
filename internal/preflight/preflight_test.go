@@ -325,3 +325,92 @@ func BenchmarkGetRequiredDependencies(b *testing.B) {
 		GetRequiredDependencies()
 	}
 }
+
+// Tests for auto-installation functions
+
+func TestGetMissingDependencies(t *testing.T) {
+	missing := GetMissingDependencies()
+
+	// This is environment-dependent, so we just check the function runs
+	t.Logf("Found %d missing dependencies", len(missing))
+
+	// Verify returned deps have required fields
+	for _, dep := range missing {
+		if dep.Name == "" {
+			t.Error("Missing dependency has empty Name")
+		}
+		if dep.Binary == "" {
+			t.Error("Missing dependency has empty Binary")
+		}
+		if dep.InstallCmd == "" {
+			t.Error("Missing dependency has empty InstallCmd")
+		}
+	}
+}
+
+func TestInstallResultStruct(t *testing.T) {
+	dep := Dependency{
+		Name:        "test",
+		Binary:      "test",
+		Package:     "test",
+		Criticality: "recommended",
+	}
+
+	result := InstallResult{
+		Dependency: dep,
+		Success:    true,
+		Error:      nil,
+		Duration:   0,
+	}
+
+	if result.Dependency.Name != "test" {
+		t.Errorf("InstallResult.Dependency.Name = %v, want test", result.Dependency.Name)
+	}
+	if !result.Success {
+		t.Error("InstallResult.Success should be true")
+	}
+}
+
+func TestInstallAllMissingDependenciesDryRun(t *testing.T) {
+	// Dry run should not actually install anything
+	results := InstallAllMissingDependencies(true)
+
+	// All results should be successful in dry run
+	for _, r := range results {
+		if !r.Success {
+			t.Errorf("Dry run should always succeed, failed for: %s", r.Dependency.Name)
+		}
+	}
+}
+
+func TestRunPreflightWithAutoFixDryRun(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	results, installResults, err := RunPreflightWithAutoFix(true)
+
+	if err != nil {
+		t.Errorf("RunPreflightWithAutoFix returned error: %v", err)
+	}
+
+	if len(results) == 0 {
+		t.Error("RunPreflightWithAutoFix returned no check results")
+	}
+
+	t.Logf("Check results: %d, Install results: %d", len(results), len(installResults))
+}
+
+func TestSystemSetupDryRun(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	// Dry run should not make any changes
+	err := SystemSetup(true)
+
+	// This may fail on non-Ubuntu systems, which is expected
+	if err != nil {
+		t.Logf("SystemSetup dry run returned: %v (expected on non-Ubuntu)", err)
+	}
+}

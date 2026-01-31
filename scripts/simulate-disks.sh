@@ -1,53 +1,47 @@
 #!/bin/bash
-# simulate-disks.sh - Creates virtual disks using loop devices
-# Run with: sudo ./simulate-disks.sh
+# simulate-disks.sh - Create virtual block devices for testing servctl
+# Usage: ./simulate-disks.sh [number_of_disks] [size_mb]
 
 set -e
 
-echo "=== Creating Simulated Disks ==="
+NUM_DISKS=${1:-2}
+SIZE_MB=${2:-512}
+
+echo "🔧 Creating $NUM_DISKS virtual disks (${SIZE_MB}MB each)..."
+
+# Ensure loop module is loaded
+modprobe loop 2>/dev/null || true
+
+for i in $(seq 1 $NUM_DISKS); do
+    DISK_FILE="/tmp/vdisk${i}.img"
+    LOOP_DEV="/dev/loop${i}"
+    
+    # Skip if already exists
+    if losetup $LOOP_DEV 2>/dev/null; then
+        echo "  ℹ️  $LOOP_DEV already exists, skipping"
+        continue
+    fi
+    
+    # Create disk image file
+    echo "  📁 Creating $DISK_FILE (${SIZE_MB}MB)..."
+    dd if=/dev/zero of=$DISK_FILE bs=1M count=$SIZE_MB status=none
+    
+    # Create loop device
+    echo "  🔗 Attaching to $LOOP_DEV..."
+    losetup $LOOP_DEV $DISK_FILE
+    
+    # Make it look like a real disk to lsblk
+    # Add a partition table
+    echo "  📋 Creating partition table..."
+    parted -s $LOOP_DEV mklabel gpt
+    
+    echo "  ✅ Virtual disk $i ready: $LOOP_DEV"
+done
+
 echo ""
-
-# Create disk image files
-mkdir -p /tmp/disks
-
-# Simulate SSD (500GB shown as small file)
-echo "[1/4] Creating simulated SSD (ssd1.img - 100MB)..."
-dd if=/dev/zero of=/tmp/disks/ssd1.img bs=1M count=100 2>/dev/null
-LOOP_SSD1=$(losetup -f --show /tmp/disks/ssd1.img)
-echo "  Created: $LOOP_SSD1 (simulating 500GB SSD)"
-
-# Simulate HDD 1 (2TB shown as small file)
-echo "[2/4] Creating simulated HDD 1 (hdd1.img - 100MB)..."
-dd if=/dev/zero of=/tmp/disks/hdd1.img bs=1M count=100 2>/dev/null
-LOOP_HDD1=$(losetup -f --show /tmp/disks/hdd1.img)
-echo "  Created: $LOOP_HDD1 (simulating 2TB HDD)"
-
-# Simulate HDD 2 (2TB backup)
-echo "[3/4] Creating simulated HDD 2 (hdd2.img - 100MB)..."
-dd if=/dev/zero of=/tmp/disks/hdd2.img bs=1M count=100 2>/dev/null
-LOOP_HDD2=$(losetup -f --show /tmp/disks/hdd2.img)
-echo "  Created: $LOOP_HDD2 (simulating 2TB HDD backup)"
-
-# Simulate NVMe (fast cache)
-echo "[4/4] Creating simulated NVMe (nvme1.img - 50MB)..."
-dd if=/dev/zero of=/tmp/disks/nvme1.img bs=1M count=50 2>/dev/null
-LOOP_NVME=$(losetup -f --show /tmp/disks/nvme1.img)
-echo "  Created: $LOOP_NVME (simulating 256GB NVMe)"
+echo "📊 Virtual disks created:"
+lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep -E "^loop[0-9]" || echo "  (use 'lsblk' to verify)"
 
 echo ""
-echo "=== Simulated Disk Summary ==="
-echo ""
-losetup -l
-echo ""
-echo "=== lsblk output ==="
-lsblk
-echo ""
-echo "Disks ready for testing!"
-echo ""
-echo "To cleanup: sudo ./simulate-disks.sh cleanup"
-
-# Store loop devices for cleanup
-echo "$LOOP_SSD1" > /tmp/disks/loops.txt
-echo "$LOOP_HDD1" >> /tmp/disks/loops.txt
-echo "$LOOP_HDD2" >> /tmp/disks/loops.txt
-echo "$LOOP_NVME" >> /tmp/disks/loops.txt
+echo "🧪 Ready for servctl testing!"
+echo "   Run: ./servctl -dry-run -start-setup"
