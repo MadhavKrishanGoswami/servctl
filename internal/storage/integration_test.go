@@ -44,10 +44,7 @@ func TestDiscoverDisks_Real(t *testing.T) {
 
 // TestGetSystemInfo_Real tests real system info gathering
 func TestGetSystemInfo_Real(t *testing.T) {
-	info, err := GetSystemInfo()
-	if err != nil {
-		t.Fatalf("GetSystemInfo failed: %v", err)
-	}
+	info := GetSystemInfo()
 
 	if info.TotalRAM == 0 {
 		t.Error("TotalRAM should not be 0")
@@ -72,7 +69,7 @@ func TestFormatDisk_DryRun_Integration(t *testing.T) {
 	}
 
 	if !result.Success {
-		t.Logf("Dry run result: %s", result.Message)
+		t.Logf("Dry run result: %s", result.Error)
 	}
 }
 
