@@ -2,6 +2,7 @@
 bin/
 servctl
 servctl-local
+*.exe
 
 # IDEs
 .vscode/
@@ -11,11 +12,24 @@ servctl-local
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Go
 vendor/
-go.sum
+
+# Testing
+/test-disks/
+*.img
+coverage.out
+*.test
 
 # Environment
 .env
-*.env
+*.env.local
+
+# Temporary
+*.tmp
+*.bak
+
+# Agent artifacts (for development)
+.gemini/

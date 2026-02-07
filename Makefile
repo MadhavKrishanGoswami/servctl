@@ -57,7 +57,7 @@ test-coverage:
 
 # Build test container
 docker-build: build
-	docker build -f Dockerfile.test -t servctl-test .
+	docker build -f build/Dockerfile -t servctl-test .
 	@echo ""
 	@echo "✅ Docker test image built: servctl-test"
 
@@ -84,7 +84,7 @@ docker-quick: build
 
 # Full Docker-in-Docker test (can run docker-compose!)
 docker-full: build
-	docker build -f Dockerfile.dind -t servctl-dind .
+	docker build -f build/Dockerfile.dind -t servctl-dind .
 	@echo ""
 	@echo "Starting Docker-in-Docker container..."
 	docker run --rm --privileged -it servctl-dind

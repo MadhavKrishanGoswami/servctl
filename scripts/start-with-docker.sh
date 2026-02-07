@@ -8,7 +8,6 @@ echo "🐳 Starting Docker daemon..."
 
 # Start Docker daemon in background
 dockerd --storage-driver=vfs &
-DOCKER_PID=$!
 
 # Wait for Docker to be ready (up to 60 seconds)
 echo "⏳ Waiting for Docker daemon to start..."

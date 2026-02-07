@@ -396,3 +396,62 @@ func RenderStorageComplete(assignments []storage.DiskAssignment) string {
 
 	return successBox.Render(b.String())
 }
+
+// RenderStrategies renders the storage strategy recommendation menu
+func RenderStrategies(strategies []storage.Strategy) string {
+	var b strings.Builder
+
+	b.WriteString(SectionStyle.Render("💾 Storage Configuration") + "\n")
+	b.WriteString(strings.Repeat("─", 40) + "\n\n")
+
+	if len(strategies) == 0 {
+		b.WriteString(WarnStyle.Render("No storage strategies available.") + "\n")
+		return b.String()
+	}
+
+	for i, s := range strategies {
+		// Strategy card
+		var card strings.Builder
+
+		// Header with number and name
+		header := fmt.Sprintf("[%d] ", i+1)
+		if s.Recommended {
+			header += RecommendedStyle.Render("⭐") + " "
+		}
+		header += DiskHeaderStyle.Render(s.Name)
+		if s.Recommended {
+			header += " " + RecommendedStyle.Render("Recommended")
+		}
+		card.WriteString(header + "\n")
+
+		// Description
+		card.WriteString(DetailStyle.Render("    "+s.Description) + "\n")
+
+		// Details
+		card.WriteString(fmt.Sprintf("    • Capacity:   %s\n", s.Capacity))
+		card.WriteString(fmt.Sprintf("    • Protection: %s\n", s.Protection))
+		if s.BestFor != "" {
+			card.WriteString(fmt.Sprintf("    • Best For:   %s\n", s.BestFor))
+		}
+
+		// Warning if present
+		if s.Warning != "" {
+			card.WriteString("    " + WarnStyle.Render(s.Warning) + "\n")
+		}
+
+		// Mount points
+		if len(s.MountPoints) > 0 {
+			card.WriteString(fmt.Sprintf("    • Mounts:     %s\n", strings.Join(s.MountPoints, ", ")))
+		}
+
+		b.WriteString(card.String())
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// RenderStrategyPrompt renders the selection prompt for strategies
+func RenderStrategyPrompt(count int) string {
+	return fmt.Sprintf("Select strategy [1-%d]: ", count)
+}

@@ -1,0 +1,130 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # Unit tests - fast, run on every push
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run unit tests
+        run: go test ./... -count=1 -race -coverprofile=coverage.out
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          fail_ci_if_error: false
+
+  # Integration tests - require Linux tools
+  integration-tests:
+    name: Linux Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests  # Only run if unit tests pass
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install Linux storage tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            util-linux \
+            hdparm \
+            smartmontools \
+            e2fsprogs \
+            xfsprogs \
+            btrfs-progs \
+            dosfstools \
+            parted \
+            gdisk \
+            lvm2 \
+            mdadm \
+            mergerfs
+
+      # Optional: Install ZFS (may fail in some runners)
+      - name: Install ZFS (optional)
+        run: sudo apt-get install -y zfsutils-linux || true
+        continue-on-error: true
+
+      - name: Create test disk images
+        run: |
+          # Create loop device images for testing
+          sudo mkdir -p /test-disks
+          
+          # Create 100MB disk images
+          sudo dd if=/dev/zero of=/test-disks/disk1.img bs=1M count=100
+          sudo dd if=/dev/zero of=/test-disks/disk2.img bs=1M count=100
+          sudo dd if=/dev/zero of=/test-disks/disk3.img bs=1M count=50
+          
+          # Setup loop devices
+          sudo losetup /dev/loop10 /test-disks/disk1.img
+          sudo losetup /dev/loop11 /test-disks/disk2.img
+          sudo losetup /dev/loop12 /test-disks/disk3.img
+          
+          # Verify
+          lsblk
+
+      - name: Run integration tests
+        run: |
+          sudo go test ./... -v -tags=integration -count=1
+
+      - name: Cleanup loop devices
+        if: always()
+        run: |
+          sudo losetup -d /dev/loop10 || true
+          sudo losetup -d /dev/loop11 || true
+          sudo losetup -d /dev/loop12 || true
+
+  # Build verification
+  build:
+    name: Build Binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Build
+        run: go build -v -o servctl ./cmd/servctl
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: servctl-linux-amd64
+          path: servctl
+
+  # Docker test container build
+  docker-test:
+    name: Docker Test Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test container
+        run: docker build -f Dockerfile.test -t servctl-test .
+
+      - name: Run tests in container
+        run: docker run --privileged servctl-test

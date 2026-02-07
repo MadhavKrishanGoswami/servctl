@@ -1,0 +1,43 @@
+# Docker Compose for running integration tests locally
+# Usage: docker compose -f docker-compose.test.yml up --build
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    privileged: true # Required for loop devices and mount operations
+    volumes:
+      # Mount source code for live updates
+      - .:/app:cached
+      # Cache Go modules
+      - go-cache:/go/pkg/mod
+    environment:
+      - SERVCTL_TEST_MODE=1
+    command: go test ./... -v -tags=integration -count=1
+
+  # Run unit tests only (faster)
+  unit-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/app:cached
+      - go-cache:/go/pkg/mod
+    command: go test ./... -v -count=1
+
+  # Interactive shell for debugging
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    privileged: true
+    volumes:
+      - .:/app:cached
+      - go-cache:/go/pkg/mod
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+volumes:
+  go-cache:

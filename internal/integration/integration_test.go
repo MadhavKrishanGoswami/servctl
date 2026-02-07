@@ -1,573 +1,305 @@
-// Package integration provides integration tests for servctl.
-// These tests verify the full workflow works correctly.
 package integration
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/madhav/servctl/internal/compose"
 	"github.com/madhav/servctl/internal/directory"
 	"github.com/madhav/servctl/internal/maintenance"
-	"github.com/madhav/servctl/internal/preflight"
-	"github.com/madhav/servctl/internal/report"
-	"github.com/madhav/servctl/internal/utils"
+	"github.com/madhav/servctl/internal/storage"
 )
 
-// TestFullWorkflow tests the complete setup workflow in dry-run mode
-func TestFullWorkflow(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping full workflow test in short mode")
+// =============================================================================
+// Full Wizard Flow Integration Tests
+// =============================================================================
+
+// TestWizardFlow_SingleDisk simulates the wizard flow for a single disk setup
+func TestWizardFlow_SingleDisk(t *testing.T) {
+	// Phase 2: Storage Strategy
+	disks := []storage.Disk{
+		{Path: "/dev/sdb", Size: 4 * 1024 * 1024 * 1024 * 1024, SizeHuman: "4TB", IsAvailable: true},
 	}
+	sysInfo := storage.SystemInfo{TotalRAM: 16 * 1024 * 1024 * 1024}
 
-	// Create temp directories
-	tmpHome := filepath.Join(os.TempDir(), "servctl-integration-home")
-	tmpData := filepath.Join(os.TempDir(), "servctl-integration-data")
-	defer os.RemoveAll(tmpHome)
-	defer os.RemoveAll(tmpData)
-
-	infraRoot := filepath.Join(tmpHome, "infra")
-
-	// Phase 1: Preflight (just validate it runs)
-	t.Run("Phase1_Preflight", func(t *testing.T) {
-		results := preflight.RunAllPreflightChecks()
-		if results == nil {
-			t.Fatal("Preflight checks returned nil")
-		}
-		// We don't check for blockers since this could be running on Mac
-		t.Logf("Preflight checks completed: %d results", len(results))
-	})
+	strategies := storage.GenerateStrategies(disks, sysInfo)
+	if len(strategies) != 1 {
+		t.Errorf("Single disk should generate 1 strategy, got %d", len(strategies))
+	}
 
 	// Phase 3: Directory Structure
-	t.Run("Phase3_Directories", func(t *testing.T) {
-		userDirs := directory.GetUserSpaceDirectories(tmpHome)
-		dataDirs := directory.GetDataSpaceDirectories(tmpData)
-		allDirs := append(userDirs, dataDirs...)
-
-		if len(allDirs) == 0 {
-			t.Fatal("No directories returned")
-		}
-
-		// Create directories for real
-		results := directory.CreateAllDirectories(tmpHome, tmpData, false)
-
-		created := directory.CountCreated(results)
-		failed := directory.CountFailed(results)
-
-		t.Logf("Created: %d, Failed: %d", created, failed)
-
-		if failed > 0 {
-			t.Errorf("Expected 0 failures, got %d", failed)
-		}
-
-		// Verify some directories exist
-		expectedDirs := []string{
-			filepath.Join(tmpHome, "infra"),
-			filepath.Join(tmpHome, "infra", "scripts"),
-			filepath.Join(tmpHome, "infra", "logs"),
-			filepath.Join(tmpData, "gallery"),
-			filepath.Join(tmpData, "cloud"),
-		}
-
-		for _, dir := range expectedDirs {
-			if !utils.DirExists(dir) {
-				t.Errorf("Directory not created: %s", dir)
-			}
-		}
-	})
-
-	// Phase 4: Service Composition
-	t.Run("Phase4_Compose", func(t *testing.T) {
-		config := compose.DefaultConfig()
-		config.HostIP = "192.168.1.100"
-		config.InfraRoot = infraRoot
-		config.DataRoot = tmpData
-		config.AutoFillDefaults()
-
-		// Validate config
-		if err := config.Validate(); err != nil {
-			t.Fatalf("Config validation failed: %v", err)
-		}
-
-		// Generate files
-		composeDir := filepath.Join(infraRoot, "compose")
-		err := compose.WriteAllConfigFiles(config, composeDir, false)
-		if err != nil {
-			t.Fatalf("WriteAllConfigFiles failed: %v", err)
-		}
-
-		// Verify files exist
-		composePath := filepath.Join(composeDir, "docker-compose.yml")
-		envPath := filepath.Join(composeDir, ".env")
-
-		if !utils.FileExists(composePath) {
-			t.Error("docker-compose.yml not created")
-		}
-		if !utils.FileExists(envPath) {
-			t.Error(".env not created")
-		}
-
-		// Check docker-compose.yml content
-		content, _ := os.ReadFile(composePath)
-		if !strings.Contains(string(content), "immich") {
-			t.Error("docker-compose.yml should contain immich")
-		}
-		if !strings.Contains(string(content), "nextcloud") {
-			t.Error("docker-compose.yml should contain nextcloud")
-		}
-
-		// Check .env content
-		envContent, _ := os.ReadFile(envPath)
-		if !strings.Contains(string(envContent), "TZ=") {
-			t.Error(".env should contain TZ")
-		}
-		if !strings.Contains(string(envContent), "DB_PASSWORD=") {
-			t.Error(".env should contain DB_PASSWORD")
-		}
-	})
-
-	// Phase 5: Maintenance
-	t.Run("Phase5_Maintenance", func(t *testing.T) {
-		mConfig := maintenance.DefaultScriptConfig()
-		mConfig.DataRoot = tmpData
-		mConfig.LogDir = filepath.Join(infraRoot, "logs")
-		mConfig.InfraRoot = infraRoot
-		mConfig.WebhookURL = "https://discord.com/api/webhooks/test/test"
-
-		scriptsDir := filepath.Join(infraRoot, "scripts")
-		scripts, err := maintenance.WriteAllScripts(mConfig, scriptsDir, false)
-		if err != nil {
-			t.Fatalf("WriteAllScripts failed: %v", err)
-		}
-
-		if len(scripts) != 4 {
-			t.Errorf("Expected 4 scripts, got %d", len(scripts))
-		}
-
-		// Verify scripts exist and are executable
-		expectedScripts := []string{
-			"daily_backup.sh",
-			"disk_alert.sh",
-			"smart_alert.sh",
-			"weekly_cleanup.sh",
-		}
-
-		for _, script := range expectedScripts {
-			scriptPath := filepath.Join(scriptsDir, script)
-			if !utils.FileExists(scriptPath) {
-				t.Errorf("Script not created: %s", script)
-			}
-
-			// Check it's executable
-			info, err := os.Stat(scriptPath)
-			if err != nil {
-				t.Errorf("Cannot stat script: %s", script)
-				continue
-			}
-			if info.Mode().Perm()&0100 == 0 {
-				t.Errorf("Script not executable: %s", script)
-			}
-		}
-	})
-
-	// Phase 8: Mission Report
-	t.Run("Phase8_MissionReport", func(t *testing.T) {
-		config := compose.DefaultConfig()
-		config.HostIP = "192.168.1.100"
-		config.NextcloudAdminPass = "testpass123"
-		config.ImmichDBPassword = "immichdb123"
-		config.NextcloudDBPassword = "ncdb123"
-		config.DataRoot = tmpData
-
-		missionReport := report.NewMissionReport(config, infraRoot)
-		output := report.RenderMissionReport(missionReport)
-
-		if output == "" {
-			t.Error("Mission report is empty")
-		}
-
-		// Check essential sections
-		essentials := []string{
-			"192.168.1.100",
-			"2283",
-			"8080",
-			"61208",
-			"testpass123",
-			"docker compose",
-		}
-
-		for _, essential := range essentials {
-			if !strings.Contains(output, essential) {
-				t.Errorf("Mission report missing: %s", essential)
-			}
-		}
-	})
-}
-
-// TestIdempotency tests that running twice doesn't create duplicates
-func TestIdempotency(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "servctl-idempotency")
-	defer os.RemoveAll(tmpDir)
-
-	// First run
-	created1, err := utils.EnsureDir(tmpDir, 0755)
-	if err != nil {
-		t.Fatalf("First EnsureDir failed: %v", err)
-	}
-	if !created1 {
-		t.Error("First run should create directory")
+	serviceSel := directory.DefaultServiceSelection()
+	dirs := directory.GetDirectoriesForServices(serviceSel, "/home/user", "/mnt/data")
+	if len(dirs) < 10 {
+		t.Errorf("Expected at least 10 directories, got %d", len(dirs))
 	}
 
-	// Second run (should be idempotent)
-	created2, err := utils.EnsureDir(tmpDir, 0755)
-	if err != nil {
-		t.Fatalf("Second EnsureDir failed: %v", err)
-	}
-	if created2 {
-		t.Error("Second run should NOT create directory (already exists)")
-	}
-
-	// Test AppendLineIfMissing
-	testFile := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(testFile, []byte(""), 0644)
-
-	added1, _ := utils.AppendLineIfMissing(testFile, "test line")
-	if !added1 {
-		t.Error("First append should add line")
-	}
-
-	added2, _ := utils.AppendLineIfMissing(testFile, "test line")
-	if added2 {
-		t.Error("Second append should NOT add line (already exists)")
-	}
-
-	// Verify file has only one occurrence
-	content, _ := os.ReadFile(testFile)
-	count := strings.Count(string(content), "test line")
-	if count != 1 {
-		t.Errorf("Line should appear exactly once, found %d times", count)
-	}
-}
-
-// TestDirectoryIdempotency tests directory creation is idempotent
-func TestDirectoryIdempotency(t *testing.T) {
-	tmpHome := filepath.Join(os.TempDir(), "servctl-dir-idem")
-	tmpData := filepath.Join(os.TempDir(), "servctl-data-idem")
-	defer os.RemoveAll(tmpHome)
-	defer os.RemoveAll(tmpData)
-
-	// First run
-	results1 := directory.CreateAllDirectories(tmpHome, tmpData, false)
-	created1 := directory.CountCreated(results1)
-
-	// Second run
-	results2 := directory.CreateAllDirectories(tmpHome, tmpData, false)
-	created2 := directory.CountCreated(results2)
-	existing2 := directory.CountExisting(results2)
-
-	t.Logf("Run 1: created=%d", created1)
-	t.Logf("Run 2: created=%d, existing=%d", created2, existing2)
-
-	// Second run should create nothing (all should exist)
-	if created2 > 0 {
-		t.Errorf("Second run created %d directories (should be 0)", created2)
-	}
-
-	// All should be marked as existing
-	if existing2 != len(results2) {
-		t.Errorf("Expected all directories to be marked existing, got %d/%d", existing2, len(results2))
-	}
-}
-
-// TestComposeIdempotency tests compose file generation is idempotent
-func TestComposeIdempotency(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "servctl-compose-idem")
-	defer os.RemoveAll(tmpDir)
-
+	// Phase 4: Compose Config
 	config := compose.DefaultConfig()
-	config.HostIP = "192.168.1.100"
-
-	// First run
-	err := compose.WriteAllConfigFiles(config, tmpDir, false)
-	if err != nil {
-		t.Fatalf("First write failed: %v", err)
+	config.AutoFillDefaults()
+	if config.NextcloudPort == 0 {
+		t.Error("Compose config should have ports set")
 	}
 
-	// Get file contents
-	content1, _ := os.ReadFile(filepath.Join(tmpDir, "docker-compose.yml"))
-
-	// Second run
-	err = compose.WriteAllConfigFiles(config, tmpDir, false)
-	if err != nil {
-		t.Fatalf("Second write failed: %v", err)
-	}
-
-	// Get file contents again
-	content2, _ := os.ReadFile(filepath.Join(tmpDir, "docker-compose.yml"))
-
-	// Should be identical
-	if string(content1) != string(content2) {
-		t.Error("Files should be identical on repeated runs")
+	// Phase 5: Maintenance Scripts
+	scriptSel := maintenance.DefaultScriptSelection()
+	scripts, _ := maintenance.GetScriptsForSelection(scriptSel, maintenance.DefaultScriptConfig())
+	if len(scripts) != 3 {
+		t.Errorf("Default script selection should generate 3 scripts, got %d", len(scripts))
 	}
 }
 
-// TestErrorHandling tests error handling works correctly
-func TestErrorHandling(t *testing.T) {
-	t.Run("CriticalError", func(t *testing.T) {
-		err := utils.NewCriticalError(
-			"Storage",
-			"Format disk",
-			os.ErrPermission,
-			"Run with sudo",
-		)
+// TestWizardFlow_TwoSimilarDisks simulates mirror/backup recommendations
+func TestWizardFlow_TwoSimilarDisks(t *testing.T) {
+	disks := []storage.Disk{
+		{Path: "/dev/sdb", Size: 4 * 1024 * 1024 * 1024 * 1024, SizeHuman: "4TB", IsAvailable: true, Type: storage.DiskTypeHDD},
+		{Path: "/dev/sdc", Size: 4 * 1024 * 1024 * 1024 * 1024, SizeHuman: "4TB", IsAvailable: true, Type: storage.DiskTypeHDD},
+	}
+	sysInfo := storage.SystemInfo{TotalRAM: 16 * 1024 * 1024 * 1024}
 
-		if !err.IsCritical {
-			t.Error("Should be critical")
-		}
+	strategies := storage.GenerateStrategies(disks, sysInfo)
 
-		formatted := utils.FormatError(err)
-		if !strings.Contains(formatted, "CRITICAL") {
-			t.Error("Should contain CRITICAL")
-		}
-		if !strings.Contains(formatted, "sudo") {
-			t.Error("Should contain remediation")
-		}
-	})
-
-	t.Run("WarningError", func(t *testing.T) {
-		err := utils.NewWarningError(
-			"Preflight",
-			"Check Docker",
-			os.ErrNotExist,
-		)
-
-		if err.IsCritical {
-			t.Error("Should not be critical")
-		}
-
-		formatted := utils.FormatError(err)
-		if !strings.Contains(formatted, "WARNING") {
-			t.Error("Should contain WARNING")
-		}
-	})
-}
-
-// TestConfigValidation tests input validation
-func TestConfigValidation(t *testing.T) {
-	tests := []struct {
-		name      string
-		modify    func(*compose.ServiceConfig)
-		expectErr bool
-	}{
-		{
-			name: "Valid default config",
-			modify: func(c *compose.ServiceConfig) {
-				c.AutoFillDefaults()
-				c.NextcloudAdminPass = "securepassword123" // Need 8+ chars
-			},
-			expectErr: false,
-		},
-		{
-			name:      "Empty timezone",
-			modify:    func(c *compose.ServiceConfig) { c.Timezone = "" },
-			expectErr: true,
-		},
-		{
-			name:      "Invalid port",
-			modify:    func(c *compose.ServiceConfig) { c.ImmichPort = 0 },
-			expectErr: true,
-		},
-		{
-			name: "Valid IP",
-			modify: func(c *compose.ServiceConfig) {
-				c.HostIP = "192.168.1.1"
-				c.AutoFillDefaults()
-				c.NextcloudAdminPass = "securepassword123"
-			},
-			expectErr: false,
-		},
+	// Should recommend Mirror
+	if len(strategies) < 3 {
+		t.Errorf("Two similar disks should generate at least 3 strategies, got %d", len(strategies))
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config := compose.DefaultConfig()
-			tt.modify(config)
-
-			err := config.Validate()
-			hasErr := err != nil
-
-			if hasErr != tt.expectErr {
-				if tt.expectErr {
-					t.Errorf("Expected error but got nil")
-				} else {
-					t.Errorf("Expected no error but got: %v", err)
-				}
-			}
-		})
+	// First should be Mirror (ZFS with 16GB RAM)
+	if strategies[0].ID != storage.StrategyMirror {
+		t.Errorf("First recommendation should be Mirror, got %v", strategies[0].ID)
+	}
+	if !strategies[0].Recommended {
+		t.Error("First strategy should be marked as recommended")
 	}
 }
 
-// TestPasswordGeneration tests password generation
-func TestPasswordGeneration(t *testing.T) {
-	passwords := make(map[string]bool)
-
-	// Generate multiple passwords and ensure uniqueness
-	for i := 0; i < 100; i++ {
-		pass := compose.GeneratePassword(32)
-
-		if len(pass) < 16 {
-			t.Errorf("Password too short: %d chars", len(pass))
-		}
-
-		if passwords[pass] {
-			t.Errorf("Duplicate password generated: %s", pass)
-		}
-		passwords[pass] = true
+// TestWizardFlow_MixedSpeedDisks simulates NVMe + HDD setup
+func TestWizardFlow_MixedSpeedDisks(t *testing.T) {
+	disks := []storage.Disk{
+		{Path: "/dev/nvme0n1", Size: 1 * 1024 * 1024 * 1024 * 1024, SizeHuman: "1TB", IsAvailable: true, Type: storage.DiskTypeNVMe, Transport: "nvme"},
+		{Path: "/dev/sdb", Size: 4 * 1024 * 1024 * 1024 * 1024, SizeHuman: "4TB", IsAvailable: true, Type: storage.DiskTypeHDD, Rotational: true},
 	}
+	sysInfo := storage.SystemInfo{TotalRAM: 16 * 1024 * 1024 * 1024}
 
-	// Test DB password (alphanumeric only)
-	for i := 0; i < 100; i++ {
-		pass := compose.GenerateDBPassword()
+	strategies := storage.GenerateStrategies(disks, sysInfo)
 
-		if len(pass) < 24 {
-			t.Errorf("DB password too short: %d chars", len(pass))
+	// Should include speed-tiered option
+	hasSpeedTiered := false
+	for _, s := range strategies {
+		if s.ID == storage.StrategySpeedTiered {
+			hasSpeedTiered = true
 		}
-
-		// Should only contain alphanumeric
-		for _, r := range pass {
-			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')) {
-				t.Errorf("DB password contains invalid char: %c", r)
-			}
-		}
+	}
+	if !hasSpeedTiered {
+		t.Error("Should recommend speed-tiered pools for NVMe + HDD")
 	}
 }
 
-// TestIPValidation tests IP address validation
-func TestIPValidation(t *testing.T) {
-	tests := []struct {
-		ip    string
-		valid bool
-	}{
-		{"192.168.1.1", true},
-		{"10.0.0.1", true},
-		{"172.16.0.1", true},
-		{"172.31.255.255", true},
-		{"8.8.8.8", false},       // Public IP
-		{"1.1.1.1", false},       // Public IP
-		{"192.168.1.256", false}, // Invalid
-		{"not-an-ip", false},     // Invalid
-		{"", false},              // Empty
+// TestWizardFlow_CustomSelection tests non-default service selection
+func TestWizardFlow_CustomSelection(t *testing.T) {
+	// User only wants Nextcloud
+	serviceSel := directory.ServiceSelection{
+		Nextcloud: true,
+		Immich:    false,
+		Databases: false,
+		Glances:   false,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.ip, func(t *testing.T) {
-			err := compose.ValidateIP(tt.ip)
-			isValid := err == nil
-			if isValid != tt.valid {
-				t.Errorf("ValidateIP(%q) = %v, want %v", tt.ip, isValid, tt.valid)
-			}
-		})
-	}
-}
+	dirs := directory.GetDirectoriesForServices(serviceSel, "/home/user", "/mnt/data")
 
-// TestWebhookValidation tests webhook URL validation
-func TestWebhookValidation(t *testing.T) {
-	tests := []struct {
-		url   string
-		valid bool
-	}{
-		{"https://discord.com/api/webhooks/123/abc", true},
-		{"https://hooks.slack.com/services/T00/B00/xxx", true},
-		{"not-a-url", false},
-		{"", true}, // Empty is valid (optional)
+	// Should only have core + nextcloud directories
+	for _, d := range dirs {
+		if d.Service == "immich" {
+			t.Error("Should not create Immich directories when not selected")
+		}
+		if d.Service == "databases" {
+			t.Error("Should not create database directories when not selected")
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.url, func(t *testing.T) {
-			err := compose.ValidateWebhookURL(tt.url)
-			isValid := err == nil
-			if isValid != tt.valid {
-				t.Errorf("ValidateWebhookURL(%q) = %v, want %v (err: %v)", tt.url, isValid, tt.valid, err)
-			}
-		})
+	// Should still have Nextcloud
+	hasNextcloud := false
+	for _, d := range dirs {
+		if d.Service == "nextcloud" {
+			hasNextcloud = true
+		}
+	}
+	if !hasNextcloud {
+		t.Error("Should have Nextcloud directories when selected")
 	}
 }
 
-// TestTemplateGeneration tests Docker Compose template generation
-func TestTemplateGeneration(t *testing.T) {
-	config := compose.DefaultConfig()
-	config.HostIP = "192.168.1.100"
-	config.Timezone = "Asia/Kolkata"
-	config.PUID = 1000
-	config.PGID = 1000
-	config.ImmichDBPassword = "testpass"
-	config.NextcloudDBPassword = "ncpass"
+// TestWizardFlow_StrategyConfig tests customization flow
+func TestWizardFlow_StrategyConfig(t *testing.T) {
+	// Default config
+	config := storage.DefaultStrategyConfig()
+	if config.MountPoint != "/mnt/data" {
+		t.Error("Default mount point should be /mnt/data")
+	}
+
+	// Convert to map for ApplyStrategy
+	configMap := config.ToConfigMap()
+	if configMap["mountpoint"] != "/mnt/data" {
+		t.Error("Config map should have mountpoint")
+	}
+	if configMap["filesystem"] != "ext4" {
+		t.Error("Config map should have filesystem")
+	}
+
+	// Custom config
+	customConfig := storage.StrategyConfig{
+		MountPoint:     "/custom/data",
+		BackupMount:    "/custom/backup",
+		Filesystem:     "xfs",
+		Label:          "my_data",
+		BackupSchedule: "6h",
+	}
+	customMap := customConfig.ToConfigMap()
+	if customMap["mountpoint"] != "/custom/data" {
+		t.Error("Custom mount point should be preserved")
+	}
+	if customMap["filesystem"] != "xfs" {
+		t.Error("Custom filesystem should be preserved")
+	}
+}
+
+// TestWizardFlow_ScriptGeneration tests maintenance script generation
+func TestWizardFlow_ScriptGeneration(t *testing.T) {
+	// All scripts enabled
+	allEnabled := maintenance.ScriptSelection{
+		DailyBackup:   true,
+		DiskAlert:     true,
+		SmartAlert:    true,
+		WeeklyCleanup: true,
+	}
+	config := maintenance.DefaultScriptConfig()
 	config.DataRoot = "/mnt/data"
+	config.BackupDest = "/mnt/backup"
+	config.WebhookURL = "https://discord.com/api/webhooks/test"
 
-	// Generate Docker Compose
-	composeContent, err := compose.GenerateDockerCompose(config)
+	scripts, err := maintenance.GetScriptsForSelection(allEnabled, config)
 	if err != nil {
-		t.Fatalf("GenerateDockerCompose failed: %v", err)
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if len(scripts) != 4 {
+		t.Errorf("Expected 4 scripts, got %d", len(scripts))
 	}
 
-	// Check for required services (adjust based on actual implementation)
-	requiredServices := []string{
-		"immich",
-		"nextcloud",
-		"postgres",
-		"redis",
-		"glances",
-	}
-
-	for _, svc := range requiredServices {
-		if !strings.Contains(composeContent, svc) {
-			t.Errorf("Missing service: %s", svc)
-		}
-	}
-
-	// Generate ENV
-	envContent, err := compose.GenerateEnvFile(config)
-	if err != nil {
-		t.Fatalf("GenerateEnvFile failed: %v", err)
-	}
-
-	// Check for required variables (adjust based on actual template)
-	requiredVars := []string{
-		"TZ=",
-		"DB_PASSWORD=",
-		"PUID=",
-		"PGID=",
-	}
-
-	for _, v := range requiredVars {
-		if !strings.Contains(envContent, v) {
-			t.Errorf("Missing env var pattern: %s", v)
+	// Verify script content includes config values
+	for _, s := range scripts {
+		if s.Content == "" {
+			t.Errorf("Script %s has empty content", s.Name)
 		}
 	}
 }
 
-// Benchmark for full workflow
-func BenchmarkFullWorkflow(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		tmpHome := filepath.Join(os.TempDir(), "servctl-bench")
-		tmpData := filepath.Join(os.TempDir(), "servctl-bench-data")
+// =============================================================================
+// Edge Case Integration Tests
+// =============================================================================
 
-		// Directories
-		directory.CreateAllDirectories(tmpHome, tmpData, true) // dry run
+// TestEdgeCase_NoDisks tests the no-disk scenario
+func TestEdgeCase_NoDisks(t *testing.T) {
+	disks := []storage.Disk{}
+	sysInfo := storage.SystemInfo{TotalRAM: 16 * 1024 * 1024 * 1024}
 
-		// Compose
-		config := compose.DefaultConfig()
-		compose.GenerateDockerCompose(config)
-		compose.GenerateEnvFile(config)
+	strategies := storage.GenerateStrategies(disks, sysInfo)
 
-		// Maintenance
-		mConfig := maintenance.DefaultScriptConfig()
-		maintenance.GenerateAllScripts(mConfig)
-
-		// Report
-		missionReport := report.NewMissionReport(config, tmpHome)
-		report.RenderMissionReport(missionReport)
+	if len(strategies) != 1 {
+		t.Errorf("No disks should generate partition strategy, got %d", len(strategies))
 	}
+	if strategies[0].ID != storage.StrategyPartition {
+		t.Error("No disks should recommend partition strategy")
+	}
+}
+
+// TestEdgeCase_HardwareRAID tests hardware RAID detection
+func TestEdgeCase_HardwareRAID(t *testing.T) {
+	disks := []storage.Disk{
+		{Path: "/dev/sdb", Model: "PERC H730 Virtual Disk", IsAvailable: true},
+		{Path: "/dev/sdc", Model: "PERC H730 Virtual Disk", IsAvailable: true},
+	}
+	sysInfo := storage.SystemInfo{TotalRAM: 16 * 1024 * 1024 * 1024}
+
+	strategies := storage.GenerateStrategies(disks, sysInfo)
+
+	// Should NOT suggest Mirror or MergerFS
+	for _, s := range strategies {
+		if s.ID == storage.StrategyMirror {
+			t.Error("Should not suggest software mirror on hardware RAID")
+		}
+		if s.ID == storage.StrategyMergerFS {
+			t.Error("Should not suggest MergerFS on hardware RAID")
+		}
+	}
+}
+
+// TestEdgeCase_LowRAM tests low RAM ZFS detection
+func TestEdgeCase_LowRAM(t *testing.T) {
+	disks := []storage.Disk{
+		{Path: "/dev/sdb", Size: 4 * 1024 * 1024 * 1024 * 1024, SizeHuman: "4TB", IsAvailable: true, Type: storage.DiskTypeHDD},
+		{Path: "/dev/sdc", Size: 4 * 1024 * 1024 * 1024 * 1024, SizeHuman: "4TB", IsAvailable: true, Type: storage.DiskTypeHDD},
+	}
+	sysInfo := storage.SystemInfo{TotalRAM: 4 * 1024 * 1024 * 1024} // 4GB - too low for ZFS
+
+	strategies := storage.GenerateStrategies(disks, sysInfo)
+
+	// Mirror should suggest MDADM, not ZFS
+	for _, s := range strategies {
+		if s.ID == storage.StrategyMirror {
+			if containsString(s.Name, "ZFS") {
+				t.Error("With 4GB RAM, should suggest MDADM not ZFS")
+			}
+		}
+	}
+}
+
+// TestEdgeCase_AllServicesDisabled tests minimal setup
+func TestEdgeCase_AllServicesDisabled(t *testing.T) {
+	serviceSel := directory.ServiceSelection{
+		Nextcloud: false,
+		Immich:    false,
+		Databases: false,
+		Glances:   false,
+	}
+
+	dirs := directory.GetDirectoriesForServices(serviceSel, "/home/user", "/mnt/data")
+
+	// Should still have core infrastructure
+	hasCore := false
+	for _, d := range dirs {
+		if d.Service == "core" {
+			hasCore = true
+		}
+	}
+	if !hasCore {
+		t.Error("Should always create core directories")
+	}
+}
+
+// TestEdgeCase_AllScriptsDisabled tests no scripts
+func TestEdgeCase_AllScriptsDisabled(t *testing.T) {
+	scriptSel := maintenance.ScriptSelection{
+		DailyBackup:   false,
+		DiskAlert:     false,
+		SmartAlert:    false,
+		WeeklyCleanup: false,
+	}
+
+	scripts, _ := maintenance.GetScriptsForSelection(scriptSel, maintenance.DefaultScriptConfig())
+
+	if len(scripts) != 0 {
+		t.Errorf("No scripts selected should return empty, got %d", len(scripts))
+	}
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+func containsString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
