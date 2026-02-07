@@ -21,7 +21,7 @@ jobs:
           cache: true
 
       - name: Run unit tests
-        run: go test $(go list ./... | grep -v /tui) -short -count=1 -coverprofile=coverage.out
+        run: go test ./internal/... -short -count=1 -coverprofile=coverage.out
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
