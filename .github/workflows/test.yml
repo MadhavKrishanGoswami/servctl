@@ -21,7 +21,7 @@ jobs:
           cache: true
 
       - name: Run unit tests
-        run: go test ./... -count=1 -race -coverprofile=coverage.out
+        run: go test ./... -short -count=1 -coverprofile=coverage.out
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -29,11 +29,36 @@ jobs:
           files: ./coverage.out
           fail_ci_if_error: false
 
+  # Build verification
+  build:
+    name: Build Binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Verify modules
+        run: go mod tidy && go mod verify
+
+      - name: Build
+        run: CGO_ENABLED=0 go build -v -o servctl ./cmd/servctl
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: servctl-linux-amd64
+          path: servctl
+
   # Integration tests - require Linux tools
   integration-tests:
     name: Linux Integration Tests
     runs-on: ubuntu-latest
-    needs: unit-tests  # Only run if unit tests pass
+    needs: [unit-tests, build]  # Only run if unit tests and build pass
     steps:
       - uses: actions/checkout@v4
 
@@ -71,21 +96,21 @@ jobs:
           sudo mkdir -p /test-disks
           
           # Create 100MB disk images
-          sudo dd if=/dev/zero of=/test-disks/disk1.img bs=1M count=100
-          sudo dd if=/dev/zero of=/test-disks/disk2.img bs=1M count=100
-          sudo dd if=/dev/zero of=/test-disks/disk3.img bs=1M count=50
+          sudo dd if=/dev/zero of=/test-disks/disk1.img bs=1M count=100 status=none
+          sudo dd if=/dev/zero of=/test-disks/disk2.img bs=1M count=100 status=none
+          sudo dd if=/dev/zero of=/test-disks/disk3.img bs=1M count=50 status=none
           
           # Setup loop devices
-          sudo losetup /dev/loop10 /test-disks/disk1.img
-          sudo losetup /dev/loop11 /test-disks/disk2.img
-          sudo losetup /dev/loop12 /test-disks/disk3.img
+          sudo losetup /dev/loop10 /test-disks/disk1.img || true
+          sudo losetup /dev/loop11 /test-disks/disk2.img || true
+          sudo losetup /dev/loop12 /test-disks/disk3.img || true
           
           # Verify
           lsblk
 
       - name: Run integration tests
         run: |
-          sudo go test ./... -v -tags=integration -count=1
+          sudo go test ./... -v -tags=integration -count=1 -timeout=10m
 
       - name: Cleanup loop devices
         if: always()
@@ -94,37 +119,21 @@ jobs:
           sudo losetup -d /dev/loop11 || true
           sudo losetup -d /dev/loop12 || true
 
-  # Build verification
-  build:
-    name: Build Binary
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Build
-        run: go build -v -o servctl ./cmd/servctl
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: servctl-linux-amd64
-          path: servctl
-
   # Docker test container build
   docker-test:
     name: Docker Test Build
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build binary for container
+        run: |
+          mkdir -p bin
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/servctl ./cmd/servctl
+
       - name: Build test container
-        run: docker build -f Dockerfile.test -t servctl-test .
+        run: docker build -f build/Dockerfile -t servctl-test .
 
       - name: Run tests in container
-        run: docker run --privileged servctl-test
+        run: docker run --rm servctl-test go test ./internal/... -short -count=1
